@@ -33,25 +33,35 @@
     <script>
         var data = [{
             "time": "2016-07-21T23:32:42,520+0200",
-            "value": "32"
+            "value": "32",
+            "value2": "32",
+            "value3": "52"          
         }, {
             "time": "2016-07-21T23:32:42,672+0200",
-            "value": "97"
+            "value": "97",
+            "value2": "92",
+            "value3": "62"
         }, {
             "time": "2016-07-21T23:32:44,713+0200",
-            "value": "18"
+            "value": "18",
+            "value2": "12",
+            "value3": "22"
         }, {
             "time": "2016-07-21T23:32:44,871+0200",
-            "value": "36"
+            "value": "36",
+            "value2": "32",
+            "value3": "32"
         }, {
             "time": "2016-07-21T23:32:50,253+0200",
-            "value": "23"
+            "value": "23",
+            "value2": "62",
+            "value3": "82"
         }];
 
         var xColumn = "time";
         var yColumn = "value";
-	var xTitle = xColumn;
-	var yTitle = "Unit";
+        var xTitle = xColumn;
+        var yTitle = "Unit";
 
         // basic SVG setup
         var margin = {
@@ -114,13 +124,10 @@
                 return a[xColumn] - b[xColumn];
             });
 
-            // color domain
-            color.domain(d3.keys(data[0]).filter(function(key) {
-                return key !== xColumn;
-            }));
-
             // create dataset array 
-            var dataset = color.domain().map(function(name) {
+            var dataset = d3.keys(data[0]).filter(function(key) {
+                return key !== xColumn;
+            }).map(function(name) {
                 return {
                     name: name,
                     values: data.map(function(d) {
@@ -131,6 +138,11 @@
                     })
                 };
             });
+          
+            // color domain
+            color.domain(dataset.map(function(d) {return d.name;  }));
+
+ 
 
             // add domain ranges to the x and y scales
             xScale.domain([
