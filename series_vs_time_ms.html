@@ -4,9 +4,9 @@
 <head>
     <meta http-equiv="content-type" content="text/html; charset=windows-1250">
     <meta name="generator" content="PSPad editor, www.pspad.com">
-    <title>d3 multi-line chart</title>
-
+    <title>d3 time series multi-line chart</title>
     <script src="https://d3js.org/d3.v3.min.js"></script>
+    <script src=d3.legend.js> </script>
 
     <style>
         .line {
@@ -25,6 +25,12 @@
             stroke: black;
             stroke-width: 1px;
         }
+        
+        .legend rect {
+            fill: white;
+            stroke: black;
+            opacity: 0.8;
+        }
     </style>
 
 </head>
@@ -35,7 +41,7 @@
             "time": "2016-07-21T23:32:42,520+0200",
             "value": "32",
             "value2": "32",
-            "value3": "52"          
+            "value3": "52"
         }, {
             "time": "2016-07-21T23:32:42,672+0200",
             "value": "97",
@@ -60,30 +66,52 @@
 
         var xColumn = "time";
         var yColumn = "value";
-        var xTitle = xColumn;
-        var yTitle = "Unit";
+        var xAxisLabelText = "Time";
+        var yAxisLabelText = "Unit";
 
         // basic SVG setup
-        var margin = {
-            top: 20,
-            right: 100,
-            bottom: 40,
-            left: 100
-        };
-        var height = 500 - margin.top - margin.bottom;
-        var width = 760 - margin.left - margin.right;
+        var outerWidth = 800;
+        var outerHeight = 600;
+        var legendHeight = 100;
 
+        var margin = {
+            left: 70,
+            top: 5,
+            right: 5,
+            bottom: 70
+        };
+        var xAxisLabelOffset = 48;
+        var yAxisLabelOffset = 40;
+        var innerWidth = outerWidth - margin.left - margin.right;
+        var innerHeight = outerHeight - margin.top - margin.bottom - legendHeight;
+        var legendY = innerHeight + xAxisLabelOffset + 30;
 
 
         var svg = d3.select("body").append("svg")
-            .attr("width", width + margin.left + margin.right)
-            .attr("height", height + margin.top + margin.bottom)
-            .append("g")
+            .attr("width", outerWidth)
+            .attr("height", outerHeight);
+        var g = svg.append("g")
             .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
+        var xAxisG = g.append("g")
+            .attr("class", "x axis")
+            .attr("transform", "translate(0," + innerHeight + ")")
+        var xAxisLabel = xAxisG.append("text")
+            .style("text-anchor", "middle")
+            .attr("transform", "translate(" + (innerWidth / 2) + "," + xAxisLabelOffset + ")")
+            .attr("class", "label")
+            .text(xAxisLabelText);
+        var yAxisG = g.append("g")
+            .attr("class", "y axis");
+        var yAxisLabel = yAxisG.append("text")
+            .style("text-anchor", "middle")
+            .attr("transform", "translate(-" + yAxisLabelOffset + "," + (innerHeight / 2) + ") rotate(-90)")
+            .attr("class", "label")
+            .text(yAxisLabelText);
+
         // setup scales - the domain is specified inside of the function called when we load the data
-        var xScale = d3.time.scale().range([0, width]);
-        var yScale = d3.scale.linear().range([height, 0]);
+        var xScale = d3.time.scale().range([0, innerWidth]);
+        var yScale = d3.scale.linear().range([innerHeight, 0]);
         var color = d3.scale.category10();
 
         // setup the axes
@@ -107,8 +135,6 @@
             .y(function(d) {
                 return yScale(d[yColumn]);
             });
-
-        var focus = svg.append("g").style("display", "none");
 
         // import data and create chart
         function type(d) {
@@ -138,11 +164,13 @@
                     })
                 };
             });
-          
-            // color domain
-            color.domain(dataset.map(function(d) {return d.name;  }));
 
- 
+            // color domain
+            color.domain(dataset.map(function(d) {
+                return d.name;
+            }));
+
+
 
             // add domain ranges to the x and y scales
             xScale.domain([
@@ -167,24 +195,12 @@
             ]);
 
             // add the x axis
-            svg.append("g")
-                .attr("class", "x axis")
-                .attr("transform", "translate(0," + height + ")")
-                .call(xAxis);
+            xAxisG.call(xAxis);
+            yAxisG.call(yAxis);
 
-            // add the y axis
-            svg.append("g")
-                .attr("class", "y axis")
-                .call(yAxis)
-                .append("text")
-                .attr("transform", "rotate(-90)")
-                .attr("y", -60)
-                .attr("dy", ".71em")
-                .style("text-anchor", "end")
-                .text(yTitle);
-                
+
             // add the line series
-            var series = svg.selectAll(".seriesXYZ")
+            var series = g.selectAll(".seriesXYZ")
                 .data(dataset)
                 .enter().append("g")
                 .attr("class", "seriesXYZ");
@@ -198,30 +214,19 @@
                 .attr("d", function(d) {
                     return line(d.values);
                 })
+                .attr("data-legend", function(d) {
+                    return d.name
+                })
                 .style("stroke", function(d) {
                     return color(d.name);
                 });
 
             // add the series labels at the right edge of chart
-            var maxLen = data.length;
-            series.append("text")
-                .datum(function(d) {
-                    return {
-                        name: d.name,
-                        value: d.values[maxLen - 1]
-                    };
-                })
-                .attr("transform", function(d) {
-                    return "translate(" + xScale(d.value[xColumn]) + "," + yScale(d.value[yColumn]) + ")";
-                })
-                .attr("id", function(d, i) {
-                    return "text_id" + i;
-                })
-                .attr("x", 3)
-                .attr("dy", ".35em")
-                .text(function(d) {
-                    return d.name;
-                });
+            var legend = g.append("g")
+                .attr("class", "legend")
+                .attr("transform", "translate(" + 0 + "," + legendY + ")")
+                .style("font-size", "12px")
+                .call(d3.legend)
         }
 
         data.forEach(type)
@@ -230,5 +235,4 @@
 
 
 </body>
-
 </html>
