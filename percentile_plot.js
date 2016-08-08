@@ -1,34 +1,61 @@
         var xColumn = "xValue";
         var yColumn = "yValue";
-        var xTitle = "percentile" 
-        var yTitle = "RTT/2";
+
+        var xAxisLabelText = "percentile";
+        var yAxisLabelText = "RTT/2";
 
         // basic SVG setup
-        var margin = {
-            top: 20,
-            right: 100,
-            bottom: 40,
-            left: 100
-        };
-        var height = 500 - margin.top - margin.bottom;
-        var width = 760 - margin.left - margin.right;
+        var outerWidth = 800;
+        var outerHeight = 600;
+        var legendHeight = 100;
 
+        var margin = {
+            left: 70,
+            top: 5,
+            right: 5,
+            bottom: 70
+        };
+        var xAxisLabelOffset = 48;
+        var yAxisLabelOffset = 40;
+        var innerWidth = outerWidth - margin.left - margin.right;
+        var innerHeight = outerHeight - margin.top - margin.bottom - legendHeight;
+        var legendY = innerHeight + xAxisLabelOffset + 30;
 
 
         var svg = d3.select("body").append("svg")
-            .attr("width", width + margin.left + margin.right)
-            .attr("height", height + margin.top + margin.bottom)
-            .append("g")
+            .attr("width", outerWidth)
+            .attr("height", outerHeight);
+        var g = svg.append("g")
             .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
+        var xAxisG = g.append("g")
+            .attr("class", "x axis")
+            .attr("transform", "translate(0," + innerHeight + ")")
+        var xAxisLabel = xAxisG.append("text")
+            .style("text-anchor", "middle")
+            .attr("transform", "translate(" + (innerWidth / 2) + "," + xAxisLabelOffset + ")")
+            .attr("class", "label")
+            .text(xAxisLabelText);
+        var yAxisG = g.append("g")
+            .attr("class", "y axis");
+        var yAxisLabel = yAxisG.append("text")
+            .style("text-anchor", "middle")
+            .attr("transform", "translate(-" + yAxisLabelOffset + "," + (innerHeight / 2) + ") rotate(-90)")
+            .attr("class", "label")
+            .text(yAxisLabelText);
+
         // setup scales - the domain is specified inside of the function called when we load the data
-        var xScale = d3.scale.linear().range([0, width]);
-        var yScale = d3.scale.linear().range([height, 0]);
+        var xScale = d3.scale.linear().range([0, innerWidth]);
+        var yScale = d3.scale.linear().range([innerHeight, 0]);
         var color = d3.scale.category10();
 
         // setup the axes
-        var xAxis = d3.svg.axis().scale(xScale).orient("bottom");
-        var yAxis = d3.svg.axis().scale(yScale).orient("left");
+        var xAxis = d3.svg.axis().scale(xScale).orient("bottom")
+            .ticks(10)
+            .outerTickSize(0);
+        var yAxis = d3.svg.axis().scale(yScale).orient("left")
+            .ticks(5)
+            .outerTickSize(0);
 
         // set the line attributes
         var line = d3.svg.line()
@@ -40,8 +67,6 @@
                 return yScale(d[yColumn]);
             });
 
-        var focus = svg.append("g").style("display", "none");
-
         // import data and create chart
         function type(d) {
             d.xValue = +d.xValue;
@@ -52,29 +77,31 @@
         function render(data) {
             // create dataset array 
             var dataset = d3.keys(data[0]).filter(function(key) {
-                return key !== xTitle;
+                return key !== xAxisLabelText;
             }).map(function(name) {
                 return {
                     name: name,
                     values: data.map(function(d) {
                         return {
-                            xValue: d[xTitle],
+                            xValue: d[xAxisLabelText],
                             yValue: d[name]
                         };
                     })
                 };
             });
 
-	    // For each seri, sort data ascending - needed to get correct bisector results
+            // For each seri, sort data ascending - needed to get correct bisector results
             dataset.forEach(function(d) {
                 d.values.forEach(type)
-        	d.values.sort(function(a, b) {
+                d.values.sort(function(a, b) {
                     return a[xColumn] - b[xColumn];
-            	});
-	    })
-          
+                });
+            })
+
             // color domain
-            color.domain(dataset.map(function(d) {return d.name;  }));
+            color.domain(dataset.map(function(d) {
+                return d.name;
+            }));
 
 
             // add domain ranges to the x and y scales
@@ -100,24 +127,11 @@
             ]);
 
             // add the x axis
-            svg.append("g")
-                .attr("class", "x axis")
-                .attr("transform", "translate(0," + height + ")")
-                .call(xAxis);
+            xAxisG.call(xAxis);
+            yAxisG.call(yAxis);
 
-            // add the y axis
-            svg.append("g")
-                .attr("class", "y axis")
-                .call(yAxis)
-                .append("text")
-                .attr("transform", "rotate(-90)")
-                .attr("y", -60)
-                .attr("dy", ".71em")
-                .style("text-anchor", "end")
-                .text(yTitle);
-                
             // add the line series
-            var series = svg.selectAll(".seriesXYZ")
+            var series = g.selectAll(".seriesXYZ")
                 .data(dataset)
                 .enter().append("g")
                 .attr("class", "seriesXYZ");
@@ -132,30 +146,19 @@
                     return line(d.values);
                 })
                 .attr('stroke-width', 3)
+                .attr("data-legend", function(d) {
+                    return d.name
+                })
                 .style("stroke", function(d) {
                     return color(d.name);
                 });
 
             // add the series labels at the right edge of chart
-            var maxLen = data.length;
-            series.append("text")
-                .datum(function(d) {
-                    return {
-                        name: d.name,
-                        value: d.values[maxLen - 1]
-                    };
-                })
-                .attr("transform", function(d) {
-                    return "translate(" + xScale(d.value[xColumn]) + "," + yScale(d.value[yColumn]) + ")";
-                })
-                .attr("id", function(d, i) {
-                    return "text_id" + i;
-                })
-                .attr("x", 3)
-                .attr("dy", ".35em")
-                .text(function(d) {
-                    return d.name;
-                });
+            var legend = g.append("g")
+                .attr("class", "legend")
+                .attr("transform", "translate(" + 0 + "," + legendY + ")")
+                .style("font-size", "12px")
+                .call(d3.legend)
         }
 
         render(data);
